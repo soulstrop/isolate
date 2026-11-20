@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mkdir -p dist/docs
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+lua_filter="${script_dir}/md-to-pdf-links.lua"
+relink_tool="${script_dir}/pdf-relink-relative"
+global_css="${HOME}/.local/share/pandoc/styles/panam.css"
+
+dist_docs_abs="$(cd dist/docs && pwd)"
+author="$(git config user.email 2>/dev/null || echo 'Unknown')"
+build_date="$(date +%Y-%m-%d)"
+
+# Resolve CSS path (docs/panam.css -> ./panam.css -> global fallback)
+if [ -f "docs/panam.css" ]; then
+  css_path="$(realpath "docs/panam.css")"
+elif [ -f "panam.css" ]; then
+  css_path="$(realpath "panam.css")"
+elif [ -f "$global_css" ]; then
+  css_path="$(realpath "$global_css")"
+else
+  css_path=""
+fi
+
+css_args=()
+if [ -n "$css_path" ]; then
+  css_args=("--css=$css_path")
+fi
+
+# Gather root markdown and docs/ markdown files
+{
+  find . -maxdepth 1 -type f -name "*.md"
+  if [ -d "docs" ]; then
+    find docs -type f -name "*.md"
+  fi
+} | while IFS= read -r src; do
+  [ -z "$src" ] && continue
+
+  clean_src="${src#./}"
+  base="$(basename "$clean_src" .md)"
+  src_dir="$(dirname "$clean_src")"
+
+  # Compute mirrored output path under dist/docs/
+  if [ "${clean_src%%/*}" = "docs" ]; then
+    rel="${clean_src#docs/}"
+    rel_dir="$(dirname "$rel")"
+  else
+    rel_dir="."
+  fi
+
+  if [ "$rel_dir" = "." ]; then
+    out_dir="dist/docs"
+  else
+    out_dir="dist/docs/$rel_dir"
+  fi
+
+  mkdir -p "$out_dir"
+  out="$out_dir/${base}.pdf"
+  out_dir_abs="$(realpath "$out_dir")"
+
+  echo "Rendering: $clean_src -> $out"
+
+  pandoc "$clean_src" \
+    --standalone \
+    --embed-resources \
+    --resource-path=".:docs:$src_dir" \
+    --metadata title="$base" \
+    --metadata author="$author" \
+    --metadata date="$build_date" \
+    --metadata lang="en" \
+    -M mermaid.format=svg \
+    --filter mermaid-filter \
+    --lua-filter="$lua_filter" \
+    --pdf-engine=weasyprint \
+    --pdf-engine-opt=--media-type=screen \
+    --pdf-engine-opt="--base-url=$out_dir_abs" \
+    "${css_args[@]}" \
+    -o "$out"
+
+  # Relink absolute WeasyPrint URIs to relative bundle paths
+  "$relink_tool" "$out" "$dist_docs_abs" "$out_dir_abs"
+done

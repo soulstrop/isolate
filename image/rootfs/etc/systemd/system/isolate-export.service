@@ -1,0 +1,17 @@
+# On shutdown, snapshot /workspace (including uncommitted work) into a git
+# bundle that the host imports after the VM exits.
+[Unit]
+Description=Prepare /persist; export /workspace as a git bundle at shutdown
+RequiresMountsFor=/workspace /persist
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=+/usr/local/bin/isolate-prepare
+ExecStop=/usr/local/bin/isolate-export
+User=agent-user
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target

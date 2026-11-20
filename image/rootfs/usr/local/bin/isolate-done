@@ -1,0 +1,5 @@
+#!/bin/sh
+# Save work and shut down. A reboot exits both Firecracker (reboot=k) and
+# QEMU (-no-reboot); isolate-export.service writes the bundle on the way down.
+echo "isolate: exporting /workspace and shutting down..."
+exec sudo systemctl reboot

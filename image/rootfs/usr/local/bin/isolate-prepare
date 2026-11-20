@@ -1,0 +1,56 @@
+#!/bin/sh
+# Boot-time setup of /persist (run as root by isolate-export.service).
+# /persist is mounted nofail, so it can appear after systemd-tmpfiles-setup ran.
+set -eu
+systemd-tmpfiles --create /etc/tmpfiles.d/isolate.conf
+
+# Seed Claude (settings.json, .claude.json, CLAUDE.md, plugins/) on a project's
+# first session. Never overwrite: once an entry exists it belongs to that
+# project (you or the agent may have edited it).
+seed=/usr/local/share/isolate/claude-seed
+for f in "$seed"/* "$seed"/.[!.]*; do
+  [ -e "$f" ] || continue
+  dst=/persist/claude/$(basename "$f")
+  [ -e "$dst" ] && continue
+  if [ -d "$f" ]; then
+    cp -a "$f" "$dst.tmp" && chown -R agent-user:agent-user "$dst.tmp" && mv "$dst.tmp" "$dst"
+  else
+    install -m 0600 -o agent-user -g agent-user "$f" "$dst"
+  fi
+done
+
+# .claude.json is the exception: add the seed's onboarding flags and /workspace
+# trust where they're missing, so a project whose file predates the seed (or was
+# written by Claude itself) does not stop at the setup wizard. Existing values
+# win, except hasCompletedOnboarding, which is always true in the guest.
+cj=/persist/claude/.claude.json
+if [ -f "$seed/.claude.json" ] && [ -f "$cj" ] && [ ! -L "$cj" ]; then
+  if jq --slurpfile s "$seed/.claude.json" '$s[0] * . | .hasCompletedOnboarding = true' "$cj" >"$cj.tmp" 2>/dev/null; then
+    if cmp -s "$cj" "$cj.tmp"; then rm -f "$cj.tmp"
+    else chown agent-user:agent-user "$cj.tmp" && chmod 0600 "$cj.tmp" && mv "$cj.tmp" "$cj"; fi
+  else
+    rm -f "$cj.tmp"   # not valid JSON: leave it to Claude
+  fi
+fi
+
+# Other agents' state (logins, sessions) and shell history default to the home
+# directory, which is on the throwaway rootfs. Each path below becomes a symlink
+# to the same path under /persist/home. On a project's first session, whatever
+# the image has there (from dotfiles, say) is copied across; after that the
+# /persist copy wins. (Claude uses CLAUDE_CONFIG_DIR=/persist/claude instead.)
+#   codex: ~/.codex  pi: ~/.pi  agy: ~/.gemini ~/.antigravity
+#   opencode: ~/.local/share/opencode ~/.local/state/opencode  fish: history
+# bash history goes to /persist/home via HISTFILE in /etc/isolate/env.
+runuser -u agent-user -- sh -eu -c '
+h=/home/agent-user
+for p in .codex .pi .gemini .antigravity .local/share/opencode .local/state/opencode .local/share/fish; do
+  src=$h/$p dst=/persist/home/$p
+  [ -L "$src" ] && [ -e "$dst" ] && continue
+  if [ ! -e "$dst" ]; then
+    mkdir -p "$(dirname "$dst")"
+    if [ -e "$src" ]; then cp -a "$src" "$dst"; else mkdir -m 0700 "$dst"; fi
+  fi
+  rm -rf "$src"
+  mkdir -p "$(dirname "$src")"
+  ln -s "$dst" "$src"
+done'

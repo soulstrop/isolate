@@ -1,0 +1,1 @@
+agent-user ALL=(ALL) NOPASSWD:ALL

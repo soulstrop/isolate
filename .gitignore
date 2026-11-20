@@ -1,0 +1,24 @@
+# Secrets: never commit
+mise/github_tokens.toml
+
+# Personal settings and agent notes (ISOLATE_* env, CLAUDE.local.md)
+mise.local.toml
+.mise.local.toml
+CLAUDE.local.md
+
+# Generated docs (mise/scripts/build-docs)
+README.html
+dist/
+
+# Test fixtures: separate git repos, kept local
+test-proj/
+tuple-test/
+
+# Python and editor debris
+__pycache__/
+*.pyc
+*~
+*.bak
+*.swp
+.#*
+\#*#

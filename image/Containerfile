@@ -1,0 +1,106 @@
+# Guest environment for isolate.fc / isolate.qemu.
+#
+# Built with podman, then flattened into a bootable ext4 root filesystem by
+# `mise run isolate.build`. The VM boots the *host's* kernel directly, so the
+# image has no kernel, bootloader or initramfs: just systemd as PID 1.
+#
+# Per-project caches and agent state are NOT in the image; they live on a
+# separate disk mounted at /persist (see etc/isolate/env).
+FROM docker.io/library/ubuntu:26.04
+
+ARG AGENT_UID=1000
+ARG AGENT_GID=1000
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      systemd systemd-sysv udev dbus kmod iproute2 iputils-ping \
+      openssh-server sudo ca-certificates curl wget gnupg less nano vim-tiny \
+      procps psmisc file unzip xz-utils bzip2 jq ripgrep fd-find tree \
+      git build-essential pkg-config \
+      python3 python3-venv python3-pip python3-dev \
+      nodejs npm \
+      fish ncurses-term \
+ && rm -rf /var/lib/apt/lists/*
+
+# Ubuntu images ship a uid-1000 "ubuntu" user; the agent takes that uid so
+# files in the project disk (created by your host uid) are owned by it.
+RUN if id ubuntu >/dev/null 2>&1; then userdel -r ubuntu; fi \
+ && groupadd -g ${AGENT_GID} agent-user \
+ && useradd -m -u ${AGENT_UID} -g ${AGENT_GID} -G sudo -s /usr/bin/fish agent-user
+
+# Static config: network, fstab, console autologin, sshd, env, export hook.
+COPY rootfs/ /
+RUN chmod 0440 /etc/sudoers.d/agent-user \
+ && chmod 0755 /usr/local/bin/isolate-export /usr/local/bin/isolate-done /usr/local/bin/isolate-prepare \
+ && mkdir -p /workspace /persist \
+ && systemctl enable systemd-networkd isolate-export \
+ && systemctl mask systemd-networkd-wait-online apt-daily.timer apt-daily-upgrade.timer \
+      motd-news.timer e2scrub_reap \
+ && rm -f /etc/ssh/ssh_host_* && ssh-keygen -A \
+ && : > /etc/machine-id
+
+# The host's public key (copied into the build context by isolate.build).
+COPY --chown=${AGENT_UID}:${AGENT_GID} authorized_keys /home/agent-user/.ssh/authorized_keys
+RUN chmod 700 /home/agent-user/.ssh && chmod 600 /home/agent-user/.ssh/authorized_keys
+
+# mise (the host's own binary, copied in by isolate.build) and the guest-wide
+# tool set in mise/config.toml: agents, orientation tools, tmux, starship.
+COPY mise-bin /usr/local/bin/mise
+COPY --chown=${AGENT_UID}:${AGENT_GID} mise/config.toml /home/agent-user/.config/mise/config.toml
+
+# Your dotfiles (an allowlisted, secret-filtered copy made by isolate.build)
+# and the guest config.fish; then Claude's settings seed for /persist/claude.
+COPY --chown=${AGENT_UID}:${AGENT_GID} dotfiles/ /home/agent-user/
+COPY --chown=${AGENT_UID}:${AGENT_GID} home/config.fish /home/agent-user/.config/fish/config.fish
+COPY claude-seed/ /usr/local/share/isolate/claude-seed/
+RUN chown -R ${AGENT_UID}:${AGENT_GID} /home/agent-user
+
+# The GitHub token is a build secret: mounted for this step only, never stored
+# in a layer. Without it installs still work, just under anonymous rate limits.
+# The download cache is dropped; sessions keep theirs on /persist.
+# TOOLS_STAMP (the build date) makes "latest" mean today's latest: the step
+# re-runs on the first build of each day instead of reusing a stale layer
+# (ISOLATE_REFRESH=1 mise run isolate.build forces it sooner).
+ARG TOOLS_STAMP=unset
+USER agent-user
+WORKDIR /home/agent-user
+RUN --mount=type=secret,id=github_token,uid=${AGENT_UID} \
+    echo "tools as of ${TOOLS_STAMP}" \
+ && if [ -s /run/secrets/github_token ]; then \
+      GITHUB_TOKEN=$(cat /run/secrets/github_token); export GITHUB_TOKEN; \
+    fi \
+ && mise install --yes \
+ && mise reshim \
+ && rm -rf /home/agent-user/.cache/mise \
+ && mise ls --current
+
+# Claude Code plugins (claude/plugins). Installed with CLAUDE_CONFIG_DIR at the
+# path the guest uses, because Claude records absolute install paths, starting
+# from the seed's settings.json (which gains enabledPlugins and the
+# marketplaces). Only plugins/ and settings.json go back into the seed; the
+# .claude.json this creates (with machine and user ids) is discarded.
+# lumen's launcher fetches its binary on first run; do that now.
+COPY claude/plugins /tmp/claude-plugins
+USER root
+RUN mkdir -p /persist/claude \
+ && cp /usr/local/share/isolate/claude-seed/settings.json /persist/claude/ \
+ && chown -R agent-user:agent-user /persist/claude
+USER agent-user
+RUN set -eu; export CLAUDE_CONFIG_DIR=/persist/claude; \
+    list=$(grep -v '^[[:space:]]*\(#\|$\)' /tmp/claude-plugins); \
+    for src in $(echo "$list" | awk '{print $1}' | sort -u); do \
+      mise exec -- claude plugin marketplace add "$src"; \
+    done; \
+    for id in $(echo "$list" | awk '{print $2}'); do \
+      mise exec -- claude plugin install --scope user "$id"; \
+    done; \
+    for r in /persist/claude/plugins/cache/ory/lumen/*/; do \
+      [ -x "$r/scripts/run" ] && CLAUDE_PLUGIN_ROOT="$r" "$r/scripts/run" --help >/dev/null || true; \
+    done; \
+    node -e 'require("node:sqlite")' || { echo "context-mode needs node >= 22.5" >&2; exit 1; }
+USER root
+RUN mv /persist/claude/plugins /persist/claude/settings.json /usr/local/share/isolate/claude-seed/ \
+ && chown -R root:root /usr/local/share/isolate/claude-seed \
+ && rm -rf /persist/claude /tmp/claude-plugins
+WORKDIR /

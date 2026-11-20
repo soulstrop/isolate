@@ -1,0 +1,49 @@
+# AppArmor profile for the VMM process of isolate.fc / isolate.qemu.
+# Applied with `aa-exec -p isolate-vm -- <vmm>`, so it has no attachment path.
+#
+# The VMM gets its disk images, the kernel, KVM and the TAP device and nothing
+# else from the host filesystem. No sockets at all: guest networking goes
+# through the already-created isolate0 TAP, which needs only /dev/net/tun.
+#
+# Install:
+#   sudo install -m644 apparmor/isolate-vm /etc/apparmor.d/
+#   sudo apparmor_parser -r /etc/apparmor.d/isolate-vm
+
+abi <abi/4.0>,
+include <tunables/global>
+
+@{ISOLATE}=@{HOME}/.local/share/isolate
+
+profile isolate-vm flags=(attach_disconnected) {
+  include <abstractions/base>
+
+  # The VMM binaries themselves
+  /usr/bin/qemu-system-x86_64 mr,
+  @{HOME}/.local/share/mise/installs/aqua-firecracker-microvm-firecracker/**/firecracker* mr,
+
+  # Kernel, disks, Firecracker config
+  @{ISOLATE}/kernel/vmlinu[xz]-* r,
+  @{ISOLATE}/projects/*/rootfs.ext4 rwk,
+  @{ISOLATE}/projects/*/cache.ext4 rwk,
+  @{ISOLATE}/projects/*/project.ext4 rwk,
+  @{ISOLATE}/projects/*/vm-config.json r,
+  # The VMM's cwd (the launcher starts it in the project's state dir; QEMU opens it)
+  @{ISOLATE}/projects/*/ r,
+
+  # Virtualization
+  /dev/kvm rw,
+  /dev/net/tun rw,
+  /sys/devices/system/cpu/{,**} r,
+  /sys/devices/system/node/{,**} r,
+  /sys/bus/nd/devices/ r,
+  /usr/share/qemu/** r,
+  /usr/share/seabios/** r,
+  @{PROC}/sys/vm/max_map_count r,
+  owner @{PROC}/@{pid}/{stat,status,maps,cmdline,mountinfo,mounts} r,
+  owner @{PROC}/@{pid}/task/*/comm rw,
+
+  # vCPU threads are kicked with signals. aa-exec from an unprivileged shell
+  # stacks the profile, so the peer may carry either label.
+  signal (send, receive) peer=isolate-vm,
+  signal (send, receive) peer=isolate-vm//&unconfined,
+}

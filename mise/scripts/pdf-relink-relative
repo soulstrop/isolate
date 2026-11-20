@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""Rewrite absolute file:/// URIs in a PDF to relative paths within a bundle."""
+
+import os
+import re
+import sys
+
+
+def make_links_relative(pdf_file: str, bundle_root: str, current_doc_dir: str) -> None:
+    dist_root = os.path.abspath(bundle_root).rstrip("/")
+    doc_dir = os.path.abspath(current_doc_dir).rstrip("/")
+    pdf_path = os.path.abspath(pdf_file)
+
+    with open(pdf_path, "rb") as f:
+        content = f.read()
+
+    pattern = re.compile(
+        rb"/URI\s*\((file://" + re.escape(dist_root.encode("utf-8")) + rb"(/[^)]*))\)"
+    )
+
+    def replace_uri(match: re.Match) -> bytes:
+        target_path = dist_root + match.group(2).decode("utf-8")
+        rel_path = os.path.relpath(target_path, doc_dir)
+        return b"/URI (" + rel_path.encode("utf-8") + b")"
+
+    new_content = pattern.sub(replace_uri, content)
+
+    if new_content != content:
+        with open(pdf_path, "wb") as f:
+            f.write(new_content)
+
+
+def main() -> None:
+    if len(sys.argv) != 4:
+        sys.stderr.write(
+            "Usage: pdf-relink-relative <pdf_file> <bundle_root> <current_doc_dir>\n"
+        )
+        sys.exit(1)
+
+    make_links_relative(sys.argv[1], sys.argv[2], sys.argv[3])
+
+
+if __name__ == "__main__":
+    main()

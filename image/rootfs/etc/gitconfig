@@ -1,0 +1,7 @@
+[user]
+	name = Isolate agent
+	email = agent@isolate.invalid
+[safe]
+	directory = /workspace
+[init]
+	defaultBranch = main

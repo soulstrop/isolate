@@ -1,0 +1,9 @@
+# Point-to-point link to the host's isolate0 TAP. The host NATs and filters it.
+[Match]
+Type=ether
+
+[Network]
+Address=172.16.0.2/30
+Gateway=172.16.0.1
+LinkLocalAddressing=no
+IPv6AcceptRA=no

@@ -1,0 +1,7 @@
+# Claude Code plugins installed into the guest image (see docs/architecture.md,
+# "Claude Code settings"). One per line: <marketplace source> <plugin@marketplace>.
+# The source is anything `claude plugin marketplace add` accepts (owner/repo,
+# a git URL). Installed at build time; each project gets a copy on first boot.
+ory/claude-plugins                  lumen@ory
+mksglu/context-mode                 context-mode@context-mode
+anthropics/claude-plugins-official  pyright-lsp@claude-plugins-official

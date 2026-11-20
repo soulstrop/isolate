@@ -1,0 +1,25 @@
+# Session environment, read by both bash (/etc/profile.d/isolate.sh) and fish
+# (/etc/fish/conf.d/isolate.fish). Plain KEY=VALUE lines: no quoting, no $expansion.
+#
+# Caches and agent state go to /persist (the per-project disk) so they survive
+# the fresh rootfs each session.
+XDG_CACHE_HOME=/persist/cache
+MISE_CACHE_DIR=/persist/cache/mise
+npm_config_cache=/persist/cache/npm
+NPM_CONFIG_PREFIX=/persist/npm-global
+PIP_CACHE_DIR=/persist/cache/pip
+UV_CACHE_DIR=/persist/cache/uv
+# The uv cache (/persist) and venvs (/workspace) are on different disks, so
+# hardlinking fails; say so up front instead of warning on every install.
+UV_LINK_MODE=copy
+GOPATH=/persist/go
+CARGO_HOME=/persist/cargo
+RUSTUP_HOME=/persist/rustup
+CLAUDE_CONFIG_DIR=/persist/claude
+# Other agents and fish history: see isolate-prepare (symlinks into /persist/home).
+HISTFILE=/persist/home/.bash_history
+DISABLE_AUTOUPDATER=1
+TEALDEER_CACHE_DIR=/persist/cache/tealdeer
+# Embedding server for the lumen plugin: Ollama on the host. Blocked unless the
+# port is opened (ISOLATE_ALLOW="host:11434") and Ollama listens on 172.16.0.1.
+OLLAMA_HOST=http://172.16.0.1:11434

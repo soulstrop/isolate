@@ -1,0 +1,30 @@
+# Guest-wide mise config, installed as ~agent-user/.config/mise/config.toml and
+# resolved at image build time (`mise install`), so these are ready offline.
+#
+# Keep this to session-level tools: coding agents and orientation helpers.
+# Anything a project needs (languages, linters, ...) belongs in that project's
+# own mise.toml, which the guest trusts and installs on demand.
+[tools]
+# agents
+claude = "latest"
+codex = "latest"
+pi = "latest"
+agy = "latest"
+"aqua:anomalyco/opencode" = "latest"   # plain "opencode" resolves to npm first
+# orientation
+witr = "latest"
+tealdeer = "latest"
+qdns = "latest"
+# language servers for the image's Claude plugins (image/claude/plugins)
+"npm:pyright" = "latest"              # pyright-lsp needs pyright-langserver
+# session (usage: needed for mise's shell completions)
+usage = "latest"
+tmux = "latest"
+starship = "latest"
+
+[settings]
+experimental = true
+# The project disk is always mounted here; its mise.toml is yours.
+trusted_config_paths = ["/workspace"]
+minimum_release_age_excludes = ["claude"]
+python.uv_venv_auto = "create|source"

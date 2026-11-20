@@ -1,0 +1,35 @@
+# Run the current git project in a throwaway microVM; the agent's work comes
+# back as git refs (refs/remotes/isolate/*) that you review and merge on exit.
+# Image: `mise run isolate.build`. Details: mise/scripts/isolate-vm.fish, docs/
+[tasks."isolate.fc"]
+description = "Run this git project in a disposable Firecracker microVM"
+run = "fish {{config_root}}/mise/scripts/isolate-vm.fish fc"
+
+[tasks."isolate.qemu"]
+description = "Run this git project in a disposable QEMU microvm"
+run = "fish {{config_root}}/mise/scripts/isolate-vm.fish qemu"
+
+[tasks."isolate.build"]
+description = "Build the isolate guest image (image/Containerfile) into an ext4 rootfs"
+run = "fish {{config_root}}/mise/scripts/isolate-build.fish"
+
+[tasks."isolate.check"]
+description = "Static checks: scripts, configs and the AppArmor profile parse, docs follow STE (no VM)"
+run = "fish {{config_root}}/mise/scripts/isolate-check.fish"
+
+# Boots a throwaway repo, so it needs the image and /dev/kvm. Extra args go to
+# the script: `mise run isolate.test qemu --claude`. Details in its header.
+[tasks."isolate.test"]
+description = "End-to-end smoke test: boot a throwaway repo in a VM and check the round trip"
+depends = ["isolate.check"]
+run = "fish {{config_root}}/mise/scripts/isolate-test.fish"
+
+# Pinned to the versions that isolate.test last passed with. To update: change
+# a version, run `mise install`, then `mise run isolate.test` (fc and qemu).
+[tools]
+"aqua:firecracker-microvm/firecracker" = "1.18.0"
+"aqua:firecracker-microvm/firectl" = "0.2.0"
+podman = { version = "6.2.0", rename_exe = "podman-remote" }
+qdns = "0.19.12"
+"npm:agent-ste" = "0.5.4"   # ste-lint, for the ste check in isolate.check
+shellcheck = "0.11.0"       # for the shellcheck step in isolate.check

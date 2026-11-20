@@ -1,0 +1,34 @@
+#!/bin/sh
+# Runs at shutdown as agent-user. Writes /workspace/.git/isolate-out.bundle with
+# every branch, plus refs/heads/isolate-wip holding uncommitted changes (if any)
+# as a commit on top of HEAD. Never touches the working tree or the real index.
+set -eu
+cd /workspace 2>/dev/null || exit 0
+[ -d .git ] || exit 0
+out=.git/isolate-out.bundle
+rm -f "$out" "$out.tmp"
+
+idx=$(mktemp)
+trap 'rm -f "$idx"' EXIT
+cp .git/index "$idx" 2>/dev/null || rm -f "$idx"
+export GIT_INDEX_FILE="$idx"
+git add -A
+tree=$(git write-tree)
+unset GIT_INDEX_FILE
+
+head=$(git rev-parse -q --verify HEAD || true)
+if [ -n "$head" ]; then
+  if [ "$tree" != "$(git rev-parse "HEAD^{tree}")" ]; then
+    c=$(git commit-tree "$tree" -p "$head" -m "isolate: uncommitted work at shutdown")
+    git update-ref refs/heads/isolate-wip "$c"
+  else
+    git update-ref -d refs/heads/isolate-wip 2>/dev/null || true
+  fi
+else
+  c=$(git commit-tree "$tree" -m "isolate: uncommitted work at shutdown")
+  git update-ref refs/heads/isolate-wip "$c"
+fi
+
+git bundle create -q "$out.tmp" --branches
+mv "$out.tmp" "$out"
+echo "isolate-export: wrote $(git bundle list-heads "$out" | wc -l) branch(es)"

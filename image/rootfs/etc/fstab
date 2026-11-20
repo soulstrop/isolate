@@ -1,0 +1,4 @@
+# Root is /dev/vda (whole-disk ext4), mounted by the kernel from root=.
+# The project disk (fresh copy of your repo) and the per-project cache disk.
+LABEL=project        /workspace ext4 defaults,nofail,x-systemd.device-timeout=10s 0 0
+LABEL=isolate-cache  /persist   ext4 defaults,nofail,x-systemd.device-timeout=10s 0 0
