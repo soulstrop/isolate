@@ -12,7 +12,8 @@ terminal would, and plays a step script read from stdin, one step per line:
                       `wait` match. Default timeout 120s.
   send TEXT           type TEXT and press Enter (sent as \\r, like a terminal).
   type TEXT           type TEXT without Enter. Escapes such as \\x1b work.
-  key NAME            press enter, esc, tab, up, down, ctrl-c or ctrl-d.
+  key NAME            press enter, esc, tab, up, down, ctrl-c, ctrl-d or
+                      ctrl-l.
   settle [SECS]       wait until output has been quiet for SECS (default 2).
   reject REGEX        from here on, fail if REGEX ever appears in the output.
   termios FLAG on|off check a local-mode/input flag of the pty (e.g. icrnl)
@@ -45,12 +46,19 @@ import fcntl
 HERE = os.path.dirname(os.path.abspath(__file__))
 ANSI = re.compile(rb"\x1b\[[0-9;?<>=!]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][A-Za-z0-9]|\x1b[=>78NOM]|\r")
 KEYS = {"enter": b"\r", "esc": b"\x1b", "tab": b"\t", "up": b"\x1b[A",
-        "down": b"\x1b[B", "ctrl-c": b"\x03", "ctrl-d": b"\x04"}
+        "down": b"\x1b[B", "ctrl-c": b"\x03", "ctrl-d": b"\x04", "ctrl-l": b"\x0c"}
 ALWAYS_FATAL = [
     (re.compile(r"\[sudo\] password for"), "the launcher asked for a sudo password (new host kernel? launch once by hand with mise run isolate.fc, then rerun)"),
     (re.compile(r"isolate: (no guest image yet|another isolate VM is already running|.* is not inside a git repository)"),
      "the launcher refused to start"),
 ]
+
+
+# fish asks the terminal for its attributes (DA1) and waits up to 2 s for the
+# answer. Keys typed in that wait can get lost. A pty has no terminal to
+# answer, so the driver answers each query like a VT220 would.
+DA1 = re.compile(rb"\x1b\[0?c")
+DA1_REPLY = b"\x1b[?62;22c"
 
 
 class StepFailed(Exception):
@@ -63,6 +71,7 @@ class Session:
         self.raw = b""
         self.text = ""          # output with escape sequences stripped
         self.pos = 0            # `wait` searches from here
+        self.answered = 0       # DA1 queries answered so far
         self.rejects = []
         self.verbose = verbose
         self.pid, self.fd = pty.fork()
@@ -100,6 +109,10 @@ class Session:
         self.raw += data
         self.log.write(data)
         self.log.flush()
+        asked = len(DA1.findall(self.raw))
+        if asked > self.answered:
+            os.write(self.fd, DA1_REPLY * (asked - self.answered))
+            self.answered = asked
         # Strip escapes on the whole tail so sequences split across reads match.
         self.text = ANSI.sub(b"", self.raw).decode("utf-8", "replace")
         self.check_fatal()

@@ -24,6 +24,11 @@ description = "End-to-end smoke test: boot a throwaway repo in a VM and check th
 depends = ["isolate.check"]
 run = "fish {{config_root}}/mise/scripts/isolate-test.fish"
 
+# Needs asciinema and agg. `mise run isolate.demo qemu --keep`; see its header.
+[tasks."isolate.demo"]
+description = "Record the README demo into docs/demo-*.gif (asciinema + agg, boots a VM)"
+run = "fish {{config_root}}/mise/scripts/isolate-demo.fish"
+
 # Pinned to the versions that isolate.test last passed with. To update: change
 # a version, run `mise install`, then `mise run isolate.test` (fc and qemu).
 [tools]
@@ -34,3 +39,5 @@ qdns = "0.19.12"
 node = "26.13.1"            # npm:agent-ste needs it to install
 "npm:agent-ste" = "0.5.4"   # ste-lint, for the ste check in isolate.check
 shellcheck = "0.11.0"       # for the shellcheck step in isolate.check
+"aqua:asciinema/asciinema" = "3.2.1"   # records the demo (isolate.demo)
+"aqua:asciinema/agg" = "1.9.0"         # renders the demo GIFs

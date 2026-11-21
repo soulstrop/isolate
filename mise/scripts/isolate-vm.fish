@@ -419,7 +419,7 @@ git --no-pager diff --stat HEAD...$target
 # tooling executes on its own (CI, task runners, editors, direnv, hooks managers).
 set -l bidi (git diff HEAD...$target | LC_ALL=C.UTF-8 grep -cP '[\x{202A}-\x{202E}\x{2066}-\x{2069}\x{200B}-\x{200F}]')
 test "$bidi" -gt 0 2>/dev/null; and echo \n"WARNING: $bidi changed line(s) contain bidirectional/zero-width Unicode."
-set -l risky (git diff --name-only HEAD...$target | string match -r '(^|/)(\.github/|\.gitlab-ci|\.envrc$|\.?mise[^/]*\.toml$|\.mise/|\.vscode/|\.idea/|\.husky/|\.pre-commit|\.gitattributes$|\.gitmodules$|Makefile$|justfile$|Taskfile|package\.json$|setup\.py$|pyproject\.toml$|conftest\.py$|build\.rs$|\.cargo/|Dockerfile|docker-compose|compose\.ya?ml$)')
+set -l risky (git diff --name-only HEAD...$target | string match -re '(?:^|/)(?:\.github/|\.gitlab-ci|\.envrc$|\.?mise[^/]*\.toml$|\.mise/|\.vscode/|\.idea/|\.husky/|\.pre-commit|\.gitattributes$|\.gitmodules$|Makefile$|justfile$|Taskfile|package\.json$|setup\.py$|pyproject\.toml$|conftest\.py$|build\.rs$|\.cargo/|Dockerfile|docker-compose|compose\.ya?ml$)')
 if test (count $risky) -gt 0
     echo \n"Review closely, these can run code on your machine:"
     printf '  %s\n' $risky

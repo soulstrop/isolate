@@ -84,7 +84,8 @@ priority. All items in "Must do" and "Should do" are complete.
   tools, because `mise install` failed without it on a new host.
 - [x] `CONTRIBUTING.md` that points to `AGENTS.md` and
   `docs/development.md`, and issue templates.
-- [ ] A short demo (asciinema or GIF) of a session and the review prompt.
+- [x] A short demo of a session and the review prompt: four GIFs in the
+  README (`mise run isolate.demo`).
 
 ## Open questions
 

@@ -98,7 +98,8 @@ the files after a pass too.
 ## Update the host tools
 
 `mise/config.toml` pins the host tools (Firecracker, firectl, podman, qdns,
-node, agent-ste and shellcheck) to the versions that the tests passed with.
+node, agent-ste, shellcheck, asciinema and agg) to the versions that the
+tests passed with.
 agent-ste needs node to install. To update a tool, do these steps:
 
 1. Change its version in `mise/config.toml`.
@@ -118,6 +119,8 @@ steps: `wait`, `send`, `type`, `key`, `settle`, `reject`, `termios` and
   guest loses keys that you send during boot.
 - It stops immediately at a sudo prompt.
 - It answers the `[d]iff` review prompt.
+- It answers the device attribute query (DA1) of fish. Without an answer,
+  fish waits 2 seconds and can lose the keys that you send in that time.
 
 Type markers as `o"k"`, so that the echo of the command line cannot match
 the `wait` pattern.
@@ -126,6 +129,35 @@ In the TUI of Claude, use `/exit` to stop it. Two Ctrl-C keys do not always
 stop it. Claude takes several seconds to stop, and Claude gets anything that
 you type in that time. So, wait for the shell prompt (`workspace on …
 main`) before you send the next command.
+
+## Record the demo
+
+`mise run isolate.demo` records the demo in the README into four GIFs,
+`docs/demo-1-launch.gif` to `docs/demo-4-review.gif`. It makes a throwaway
+repo with the name `demo`, and then `isolate-demo.py` plays the steps in
+`isolate-demo.fish`. asciinema records the session as one cast. Use `qemu`
+to record QEMU, and `--keep` to keep the cast and the repo.
+
+A `cut NAME` step puts an invisible mark in the cast. `isolate-demo.py
+--split` cuts the cast at the marks into one cast for each piece, and agg
+renders each piece. The name `-` drops the output up to the next mark. Put a
+`cut` immediately after a `wait`, not after a `pause`. Output that arrives
+during the pause goes into the piece before the mark.
+
+The demo uses the network, so launch once by hand before you record. The
+driver stops at a sudo prompt. These steps keep personal data out of the GIF:
+
+- The host shell is `fish --private --no-config`, with a neutral prompt and
+  no history.
+- The script changes `$HOME` to `~` in the cast. If your user name is still
+  in a piece, the script stops before it makes the GIFs.
+
+The guest console does not know the size of the host terminal. It uses 80
+columns. Keep each guest command line shorter than 78 characters, or fish
+draws the line incorrectly.
+
+After a change to the output of the launcher or the guest, record the demo
+again and look at the GIF before you commit it.
 
 ## Inspect disks without a boot
 

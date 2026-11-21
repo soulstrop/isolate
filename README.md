@@ -28,6 +28,30 @@ With isolate, the agent gets a whole machine where none of that exists. Its outp
 comes back the same way as a pull request from a stranger. It comes back as
 commits that you read before you merge them.
 
+## See it work
+
+Run one command in your repo. isolate copies the repo into a new microVM and
+boots it.
+
+![mise run isolate.fc boots the repo in a microVM](docs/demo-1-launch.gif)
+
+Inside, the agent has a full Linux system. But it cannot see your home
+directory, your keys or your local network.
+
+![The guest has no host home, no keys and no LAN, but it has the internet](docs/demo-2-boundary.gif)
+
+The agent works on its copy of the repo. Here it also adds a line to a CI
+workflow, a file that can run code outside the VM. Commits and changed files
+go back to the host. Files that git ignores stay in the VM.
+
+![The agent commits, appends a line to the CI workflow and writes an ignored log](docs/demo-3-agent.gif)
+
+`isolate-done` stops the VM and sends the work back as git refs. isolate
+flags the files that can run code and shows the diff. It merges nothing until
+you tell it to.
+
+![The review prompt flags the workflow, shows the diff and merges nothing](docs/demo-4-review.gif)
+
 ## Quick start
 
 ### Requirements
@@ -281,6 +305,8 @@ mise/scripts/isolate-vm.fish      launches a VM and imports the result
 mise/scripts/isolate-check.fish   static checks (mise run isolate.check)
 mise/scripts/isolate-test.fish    end-to-end smoke test (mise run isolate.test)
 mise/scripts/isolate-drive.py     drives a launch through a pty for the test
+mise/scripts/isolate-demo.fish    records the README demo (mise run isolate.demo)
+mise/scripts/isolate-demo.py      types the demo steps for asciinema
 ```
 
 ## Testing changes to isolate
