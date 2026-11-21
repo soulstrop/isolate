@@ -89,8 +89,8 @@ priority. All items in "Must do" and "Should do" are complete.
 
 ## Open questions
 
-- Which backlog item to do first. The Ollama API restriction is the one open
-  security concern.
+- Which backlog item to do first. The Ollama API restriction and the domain
+  allowlist are the open security items. They can share one proxy.
 - Video and audio in the guest: what is the use case (see the backlog item)?
 - Whether to link the roadmap from the README.
 
@@ -136,6 +136,49 @@ It answers all other requests with 403.
 - `docs/architecture.md` (lumen and Ollama) and `docs/troubleshooting.md`
   describe the proxy and the remaining exposure. The guest can still call
   the embedding model and list the models.
+
+### Limit the internet access of the guest to an allowlist of domains
+
+**Problem.** The guest can connect to the whole public internet. A
+prompt-injected agent can send the code to any host with `curl`, a DNS
+tunnel or a package upload. Rules in nftables cannot limit the guest by
+domain, because the firewall sees only IP addresses. The agent APIs use
+shared CDNs, and their addresses change.
+
+**Fix.** Add an opt-in mode with an allowlist. In this mode, a CONNECT proxy
+on the host listens on `172.16.0.1`, and the guest gets `HTTPS_PROXY` and
+`HTTP_PROXY`:
+
+- The proxy accepts a CONNECT only to a hostname in the allowlist. It
+  resolves the name itself, so the guest cannot choose the address. It
+  does not decrypt TLS, so the guest needs no extra CA.
+- The forward chain drops all traffic from the guest, DNS included. The
+  input chain lets the guest connect only to the proxy port. A tool that
+  does not use the proxy fails, so the mode fails closed.
+- The proxy starts and stops with the VM, and AppArmor confines it, as it
+  confines the VMM.
+- The allowlist is a preset for each agent (for example
+  `ISOLATE_EGRESS=claude`) with the hosts from the docs of that agent, plus
+  the entries of the user for each project. One image holds all agents, so
+  the launcher cannot know which agent runs.
+- Use one proxy for this item and for the Ollama filter above, if
+  possible. Choose between tinyproxy with a default-deny filter and a small
+  Python proxy in the repo.
+
+**Limits.** The allowed API is still a path out. An agent can send the code
+to the same API with the key of an attacker. Only a TLS-intercepting proxy
+that checks the auth header can stop this, and that is out of scope.
+Package installs, `git fetch` and local web-fetch tools fail unless the user
+adds their domains.
+
+**Done when:**
+
+- With the mode on, the agent of the preset logs in and works.
+- `curl` to a host outside the allowlist, to a raw IP address, and DNS to
+  an outside resolver all fail. `isolate.test` checks these cases.
+- With the mode off, the network works as before.
+- `README.md`, `docs/architecture.md` (Network) and the symptom table in
+  `docs/troubleshooting.md` describe the mode and its limits.
 
 ### Share host mise installs with the guest, read-only
 
