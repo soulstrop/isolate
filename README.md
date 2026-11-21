@@ -28,6 +28,9 @@ With isolate, the agent gets a whole machine where none of that exists. Its outp
 comes back the same way as a pull request from a stranger. It comes back as
 commits that you read before you merge them.
 
+[docs/motivation.md](docs/motivation.md) tells how each design choice answers
+a survey of sandboxes for AI agents.
+
 ## See it work
 
 Run one command in your repo. isolate copies the repo into a new microVM and
@@ -289,6 +292,7 @@ CONTRIBUTING.md              how to report a bug and send a change
 LICENSE                      MIT
 SECURITY.md                  how to report a vulnerability, and the threat model
 apparmor/isolate-vm          AppArmor profile the VMM runs under
+docs/motivation.md           why: the sandbox survey that isolate answers
 docs/architecture.md         how it works: disks, boot, import, network, image
 docs/troubleshooting.md      symptoms, causes, and how to narrow problems down
 docs/development.md          build, test and debug changes to isolate itself
