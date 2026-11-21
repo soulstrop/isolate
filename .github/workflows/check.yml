@@ -1,0 +1,39 @@
+# Static checks (mise run isolate.check) on each push and pull request.
+# isolate.test needs KVM and sudo, so it stays local (docs/development.md).
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install system packages
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fish jq apparmor
+
+      # Installs the pinned tools from mise/config.toml, as the README tells users to.
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+        with:
+          version: 2026.10.19
+
+      # A check whose tool is missing only shows as "skip" locally. In CI, fail.
+      - name: mise run isolate.check
+        run: |
+          mise run isolate.check | tee check.log
+          if grep -q '^  skip' check.log; then
+            echo "::error::isolate.check skipped a check because a tool is missing"
+            exit 1
+          fi

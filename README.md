@@ -258,6 +258,7 @@ model. When something goes wrong, start with
 ## Repository layout
 
 ```
+.github/workflows/check.yml  CI: runs isolate.check on each push and pull request
 AGENTS.md                    rules and preferences for coding agents (CLAUDE.md imports it)
 LICENSE                      MIT
 SECURITY.md                  how to report a vulnerability, and the threat model

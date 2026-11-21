@@ -79,8 +79,9 @@ priority. All items in "Must do" and "Should do" are complete.
 
 ### Nice to have
 
-- [ ] A GitHub Actions workflow that runs `mise run isolate.check`. It needs
-  no KVM. `isolate.test` stays local.
+- [x] A GitHub Actions workflow that runs `mise run isolate.check`. It needs
+  no KVM. `isolate.test` stays local. The work also added node to the pinned
+  tools, because `mise install` failed without it on a new host.
 - [ ] `CONTRIBUTING.md` that points to `AGENTS.md` and
   `docs/development.md`, and issue templates.
 - [ ] A short demo (asciinema or GIF) of a session and the review prompt.

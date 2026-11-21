@@ -31,5 +31,6 @@ run = "fish {{config_root}}/mise/scripts/isolate-test.fish"
 "aqua:firecracker-microvm/firectl" = "0.2.0"
 podman = { version = "6.2.0", rename_exe = "podman-remote" }
 qdns = "0.19.12"
+node = "26.13.1"            # npm:agent-ste needs it to install
 "npm:agent-ste" = "0.5.4"   # ste-lint, for the ste check in isolate.check
 shellcheck = "0.11.0"       # for the shellcheck step in isolate.check

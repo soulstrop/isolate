@@ -57,6 +57,11 @@ mise run isolate.test -- qemu --claude    # QEMU, and also start and /exit Claud
 `isolate.check` does these checks. It reports a check whose tool is missing
 as skipped, not as failed.
 
+GitHub Actions runs `isolate.check` on each push to `main` and on each pull
+request (`.github/workflows/check.yml`). In CI, a skipped check fails the
+job. CI cannot run `isolate.test`, because the runners have no KVM. Run it
+locally.
+
 | Check | What it does |
 | ----- | ------------ |
 | `fish` | Each fish script parses (`fish --no-execute`). |
@@ -93,8 +98,8 @@ the files after a pass too.
 ## Update the host tools
 
 `mise/config.toml` pins the host tools (Firecracker, firectl, podman, qdns,
-agent-ste and shellcheck) to the versions that the tests passed with. To update a tool,
-do these steps:
+node, agent-ste and shellcheck) to the versions that the tests passed with.
+agent-ste needs node to install. To update a tool, do these steps:
 
 1. Change its version in `mise/config.toml`.
 2. Run `mise install`.
