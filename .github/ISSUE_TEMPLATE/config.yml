@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/soulstrop/isolate/security/advisories/new
+    about: Do not open a public issue for a vulnerability. Use the private report form (see SECURITY.md).
+  - name: Troubleshooting guide
+    url: https://github.com/soulstrop/isolate/blob/main/docs/troubleshooting.md
+    about: Many failures have a known cause and fix. Look here first.

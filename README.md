@@ -258,8 +258,10 @@ model. When something goes wrong, start with
 ## Repository layout
 
 ```
+.github/ISSUE_TEMPLATE/      bug report and feature request forms
 .github/workflows/check.yml  CI: runs isolate.check on each push and pull request
 AGENTS.md                    rules and preferences for coding agents (CLAUDE.md imports it)
+CONTRIBUTING.md              how to report a bug and send a change
 LICENSE                      MIT
 SECURITY.md                  how to report a vulnerability, and the threat model
 apparmor/isolate-vm          AppArmor profile the VMM runs under
@@ -292,7 +294,8 @@ mise run isolate.test -- qemu --claude    # QEMU, and also start and quit Claude
 ```
 
 [docs/development.md](docs/development.md) tells what each check and test
-does, and how to drive and debug other launches.
+does, and how to drive and debug other launches. Read
+[CONTRIBUTING.md](CONTRIBUTING.md) before you send a change.
 
 ## License
 

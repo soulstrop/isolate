@@ -1,0 +1,77 @@
+name: Bug report
+description: isolate does not work as the docs say.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Is this a security vulnerability?** Then do not use this form. Use the private report form (see SECURITY.md).
+
+        Remove tokens, email addresses and private paths from all logs before you paste them.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. mise run isolate.build
+        2. cd ~/projects/my-repo && mise run isolate.fc
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: vmm
+    attributes:
+      label: VMM
+      options:
+        - Firecracker (isolate.fc)
+        - QEMU (isolate.qemu)
+        - Both
+        - Not applicable (build, check or docs)
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: isolate commit
+      description: The output of `git -C <path to isolate> rev-parse --short HEAD`.
+    validations:
+      required: true
+  - type: input
+    id: host
+    attributes:
+      label: Host distribution and kernel
+      placeholder: Ubuntu 26.04, kernel 7.0.0-44-generic
+    validations:
+      required: true
+  - type: dropdown
+    id: apparmor
+    attributes:
+      label: AppArmor profile isolate-vm
+      options:
+        - Loaded
+        - Not loaded
+        - Do not know
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log output
+      description: The part of the console or build log that shows the failure. Remove secrets first.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I read docs/troubleshooting.md, and it does not solve the problem.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

@@ -1,0 +1,37 @@
+name: Feature request
+description: Suggest a new feature or a change to how isolate works.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Look at the roadmap (docs/roadmap/roadmap.md) first. Your idea can already be in the backlog.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you want to do, and why isolate does not let you do it now.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How isolate could solve the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Effect on the isolation
+      description: |
+        Does the change share anything new between the host and the guest? For example, a mount, a disk, a port or a write to host data.
+        If yes, tell us how isolate keeps the host safe.
+      placeholder: "No new sharing: the change stays inside the guest."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other ways to solve the problem, and why you did not select them.
