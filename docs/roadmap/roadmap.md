@@ -164,10 +164,15 @@ on the host listens on `172.16.0.1`, and the guest gets `HTTPS_PROXY` and
 - Use one proxy for this item and for the Ollama filter above, if
   possible. Choose between tinyproxy with a default-deny filter and a small
   Python proxy in the repo.
+- The proxy writes one log line for each connection: the time, the
+  hostname, the result and the bytes. It writes no content.
+
+The full design is in [architecture.md](../architecture.md#planned-a-domain-allowlist-with-a-connect-proxy).
 
 **Limits.** The allowed API is still a path out. An agent can send the code
 to the same API with the key of an attacker. Only a TLS-intercepting proxy
-that checks the auth header can stop this, and that is out of scope.
+that checks the auth header can stop this. That is out of scope (see
+[TLS interception](../architecture.md#out-of-scope-tls-interception)).
 Package installs, `git fetch` and local web-fetch tools fail unless the user
 adds their domains.
 

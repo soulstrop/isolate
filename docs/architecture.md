@@ -282,6 +282,101 @@ only when the allow list changes, or after a reboot.
 Only one VM runs at a time, because all VMs share `isolate0` and the guest
 address. A second launch fails immediately on `vm.lock`.
 
+### Planned: a domain allowlist with a CONNECT proxy
+
+> **Status:** design only. The launcher does not do this yet. The work is the
+> roadmap item [Limit the internet access of the guest to an allowlist of
+> domains](roadmap/roadmap.md#limit-the-internet-access-of-the-guest-to-an-allowlist-of-domains).
+
+Today the guest can connect to all of the public internet. nftables cannot
+limit the guest by domain, because the firewall sees only IP addresses. The
+agent APIs use shared CDNs, and their addresses change. So the limit must
+come from a component that sees the hostname. This component is a proxy on
+the host.
+
+```
+guest 172.16.0.2                     host 172.16.0.1                 internet
+HTTPS_PROXY=http://172.16.0.1:PORT
+  curl / agent ── CONNECT api.example.com:443 ──▶ proxy
+                                                   │ hostname in allowlist?
+                                                   ├─ no:  403, log the attempt
+                                                   └─ yes: resolve the name, open TCP
+                                                           ◀═══ TLS end to end ═══▶  api.example.com
+  any other packet ──▶ nftables: drop (DNS included)
+```
+
+The mode is opt-in, for example `ISOLATE_EGRESS=claude`. With the mode on:
+
+- **The proxy** listens on `172.16.0.1`. The launcher starts it before the
+  VMM and stops it after the VM stops. It accepts only the `CONNECT` method,
+  and only to port 443 of a hostname in the allowlist. It resolves the name
+  itself, so the guest cannot choose the address. It sends the TLS bytes
+  through without change. It does not decrypt them.
+- **The guest** gets `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` from the
+  kernel command line or `/etc/isolate/env`. It needs no extra CA, because
+  the TLS session goes from the guest to the real server.
+- **The firewall** changes in two places. The input chain lets the guest
+  connect to the proxy port, in addition to the `ISOLATE_ALLOW` entries. The
+  forward chain drops all traffic from the guest, DNS included. A tool that
+  does not use the proxy fails. So the mode fails closed.
+- **The allowlist** is a preset for each agent, with the hosts from the
+  docs of that agent. The user can add entries for each project in
+  `projects/<p>/egress-allow`. One image holds all the agents, so the
+  launcher cannot know which agent runs, and the user chooses the preset.
+- **The log** has one line for each connection: the time, the hostname, the
+  result (allowed or denied) and the bytes in each direction. It goes to
+  `projects/<p>/egress.log`. It has no content and no credentials, because
+  the proxy never sees the decrypted traffic. A large upload to an unusual
+  host is easy to see in this log.
+- **AppArmor** confines the proxy, as it confines the VMM. The proxy can
+  open sockets, read the allowlist and write the log. It has no other access
+  to your home directory.
+
+The Ollama filter of the roadmap can use the same proxy process. That filter
+is a reverse proxy for plain HTTP on port 11434, not a `CONNECT` proxy.
+
+These are the limits of the design:
+
+- An allowed API is still a path out. An agent can send the code to an
+  allowed API with the key of an attacker. The proxy cannot see the key.
+- Package installs, `git fetch` and web-fetch tools fail, unless the user
+  adds their domains.
+- git over ssh does not go through the proxy. Use HTTPS remotes in this mode.
+
+#### Out of scope: TLS interception
+
+We looked at a proxy that decrypts the TLS of the guest, for example
+mitmproxy with a CA that only the guest trusts. It would show the content of
+each request. It could also see a change of API key, and so close the first
+limit above.
+
+We decided not to do it. The benefit is too small for the cost
+and the new risk. The work is not worth the result. These are the reasons:
+
+- **New attack surface on the host.** The proxy must parse TLS and HTTP that
+  a hostile guest controls. Today the only host program that does this kind
+  of work is the VMM, under AppArmor. The other host steps read inert files.
+- **Credentials in the logs.** The decrypted traffic contains the OAuth
+  tokens and API keys of the agents. The rule for host logs is that they
+  never contain credentials. So each log line needs redaction that must not
+  fail.
+- **Content in the logs.** The request bodies hold the code and the prompts.
+  The log then needs the same care as the repo.
+- **Breakage.** Each tool must trust the CA. Node, Python, pip, curl, git and
+  cargo each read a different setting. Tools with a built-in certificate
+  list or with pinned certificates fail. Streamed responses (SSE and
+  websockets) need special settings, or the output of the agent arrives
+  late.
+- **Partial coverage.** DNS tunnels, git over ssh and other protocols that
+  are not HTTPS go past an HTTP proxy. The forward drop of the allowlist mode
+  already stops them, without decryption.
+- **The metadata log is enough for the main question.** It shows which host
+  got how many bytes. That finds the usual leak without a CA and without
+  decryption.
+
+If a real need for the content appears, add it as a new roadmap item. Do not
+add it to the allowlist mode.
+
 ### ssh and editors
 
 Each build pins the ed25519 host key of the guest into
